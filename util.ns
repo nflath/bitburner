@@ -1,16 +1,18 @@
 /** @param {NS} ns **/
-var scripts = ["hack.ns", "grow.ns", "weaken.ns", "early-hack-template.ns"]
+var HOME_RESERVED_RAM = 20;
 
-export async function get_total_ram(ns) {
-    var total_ram = 0
-    await for_each_server(ns, async function(ns, server) {
-        total_ram += await get_server_max_ram(ns, server)
-    });
-    return total_ram
+var SCRIPTS = ["hack.ns", "grow.ns", "weaken.ns", "early-hack-template.ns"]
+var HOME = "home"
+var PORT_OPENING_FILES = {
+        "BruteSSH.exe" : function(ns,server) { ns.brutessh(server); },
+        "FTPCrack.exe" : function(ns,server) { ns.ftpcrack(server); },
+        "HTTPWorm.exe" : function(ns,server) { ns.httpworm(server); },
+        "relaySMTP.exe": function(ns,server) { ns.relaysmtp(server); },
+        "SQLInject.exe": function(ns,server) { ns.sqlinject(server); },
 }
 
+// Takes a function and execute it on every reachable server
 export async function for_each_server(ns, fn) {
-
     async function for_each_server_h(ns, server, fn, from) {
         var servers = await ns.scan(server);
         await fn(ns, server);
@@ -23,19 +25,33 @@ export async function for_each_server(ns, fn) {
     await for_each_server_h(ns, "home", fn, "")
 }
 
+// Get the max ram for a particular server.
+// Home is adjusted downwards so that manual test scripts can be run.
+// TODO: Can we replace the ns.getServerMaxRam with this?
 export async function get_server_max_ram(ns, server) {
-    if (server == "home") {
-        return await ns.getServerMaxRam(server) - 20; // Save 20GB for running test programs
+    var server_max_ram = await ns.getServerMaxRam(server);
+    if (server == HOME) {
+        return server_max_ram - HOME_RESERVED_RAM;
     }
-    return await ns.getServerMaxRam(server)
+    return server_max_ram;
 }
 
+// Returns total RAM in the network.
+export async function get_total_ram(ns) {
+    var total_ram = 0
+    await for_each_server(ns, async function(ns, server) {
+        total_ram += await get_server_max_ram(ns, server)
+    });
+    return total_ram
+}
+
+// Starts the given script/target combination on all reachable servers.
+// TODO: Expand to a normal arglist.
 export async function install_script_on_all_servers(ns, script, target) {
     await for_each_server(ns, async function (ns, server) {
         var has_root = ns.hasRootAccess(server);
         if (has_root) {
             var num_threads = Math.floor( (await get_server_max_ram(ns, server) - await ns.getServerUsedRam(server)) / await ns.getScriptRam(script))
-            ns.print("num_threads: ", num_threads, script, target)
             if (num_threads > 0) {
                 await ns.exec(script, server, num_threads, target);
             }
@@ -43,30 +59,21 @@ export async function install_script_on_all_servers(ns, script, target) {
     });
 }
 
+// Performs setup on all reachable nodes:
+//  1. Gets root access on all reachable servers.  Copies
+//  2. Copies over all  relevant scripts
+//  3. Kills all copies of the scripts running.
 export async function setup_servers(ns) {
     await for_each_server(ns, async function (ns, server) {
         var files = await ns.ls("home");
         var num_server_ports_can_open = 0;
-        if (files.includes("BruteSSH.exe")) {
-            await ns.brutessh(server);
-            num_server_ports_can_open += 1;
+        for(let file in Object.keys(PORT_OPENING_FILES)) {
+            if(files.includes(file)) {
+                PORT_OPENING_FILES[file](ns,server);
+                num_server_ports_can_open += 1;
+            }
         }
-        if (files.includes("FTPCrack.exe")) {
-            await ns.ftpcrack(server);
-            num_server_ports_can_open += 1
-        }
-        if (files.includes("HTTPWorm.exe")) {
-            await ns.httpworm(server);
-            num_server_ports_can_open += 1
-        }
-        if (files.includes("relaySMTP.exe")) {
-            await ns.relaysmtp(server);
-            num_server_ports_can_open += 1
-        }
-        if (files.includes("SQLInject.exe")) {
-            await  ns.sqlinject(server);
-            num_server_ports_can_open += 1
-        }
+
         var can_nuke = await ns.getServerNumPortsRequired(server) <= num_server_ports_can_open;
         var has_root = await ns.hasRootAccess(server);
 
@@ -74,13 +81,13 @@ export async function setup_servers(ns) {
             await ns.nuke(server)
         }
 
-        if (server != "home") {
-            for (let script of scripts) {
-                await ns.scp(script, "home", server)
+        if (server != HOME) {
+            for (let script of SCRIPTS) {
+                await ns.scp(script, HOME, server)
             }
         }
-        for (let script of scripts) {
-            ns.print("script:", script)
+
+        for (let script of SCRIPTS) {
             await ns.scriptKill(script, server)
         }
     });

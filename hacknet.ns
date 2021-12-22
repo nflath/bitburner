@@ -1,33 +1,37 @@
 /** @param {NS} ns **/
 
-var hacknet_max_hours_to_payoff = 48;
+// Buy all hacknet upgrades that will pay of within this timeframe.
+var HACKNET_MAX_HOURS_TO_PAYOFF = 48;
+
+var BASE_HACKNET_DPS = 1.5;
 
 export async function upgrade_hacknodes(ns) {
-   var base_hacknet_dps = 1.5;
 
    var multiplier = ns.getHacknetMultipliers().production;
 
+    // All these functions could change in later updates.  They're just lifted
+    // from the source.
     while(ns.hacknet.getPurchaseNodeCost() < ns.getServerMoneyAvailable("home")
-         &&   ns.hacknet.getPurchaseNodeCost() < base_hacknet_dps * multiplier * hacknet_max_hours_to_payoff * 3600) {
+         &&   ns.hacknet.getPurchaseNodeCost() < BASE_HACKNET_DPS * multiplier * HACKNET_MAX_HOURS_TO_PAYOFF * 3600) {
             ns.hacknet.purchaseNode();
     }
 
     var i = 0;
     while (i < ns.hacknet.numNodes()) {
-        var stats = ns.hacknet.getNodeStats(i)
-        var hacknet_dps  = stats.production
+        var stats = ns.hacknet.getNodeStats(i);
+        var hacknet_dps  = stats.production;
         while(ns.hacknet.getLevelUpgradeCost(i, 1 ) < ns.getServerMoneyAvailable("home")
-              && ns.hacknet.getLevelUpgradeCost(i, 1) < (hacknet_dps / stats.level * (stats.level + 1) - hacknet_dps) * hacknet_max_hours_to_payoff  * 3600) {
+              && ns.hacknet.getLevelUpgradeCost(i, 1) < (hacknet_dps / stats.level * (stats.level + 1) - hacknet_dps) * HACKNET_MAX_HOURS_TO_PAYOFF  * 3600) {
             ns.hacknet.upgradeLevel(i, 1);
         }
 
         while(ns.hacknet.getRamUpgradeCost(i, 1) < ns.getServerMoneyAvailable("home")
-              && ns.hacknet.getRamUpgradeCost(i, 1) < (hacknet_dps / Math.pow(1.035, stats.ram - 1) * Math.pow(1.035, stats.ram * 2) - hacknet_dps) *  hacknet_max_hours_to_payoff * 3600) {
+              && ns.hacknet.getRamUpgradeCost(i, 1) < (hacknet_dps / Math.pow(1.035, stats.ram - 1) * Math.pow(1.035, stats.ram * 2) - hacknet_dps) *  HACKNET_MAX_HOURS_TO_PAYOFF * 3600) {
             ns.hacknet.upgradeRam(i, 1);
         }
 
         while(ns.hacknet.getCoreUpgradeCost(i, 1) < ns.getServerMoneyAvailable("home")
-              && ns.hacknet.getCoreUpgradeCost(i,1 ) < (hacknet_dps / ((stats.cores+5)/6) * ((stats.cores+6)/6) - hacknet_dps) * hacknet_max_hours_to_payoff * 3600) {
+              && ns.hacknet.getCoreUpgradeCost(i,1 ) < (hacknet_dps / ((stats.cores+5)/6) * ((stats.cores+6)/6) - hacknet_dps) * HACKNET_MAX_HOURS_TO_PAYOFF * 3600) {
             ns.hacknet.upgradeCore(i,1);
 
         }
