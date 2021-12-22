@@ -130,16 +130,16 @@ export async function run_op(ns, op, ts) {
 
 export async function main(ns) {
     // Always run an install first
-
-    var files = ns.ls("home");
-
     var server_to_hack = await GetServerToHack(ns);
-    var has_brutessh = false;
-    var has_ftpcrack = false;
-    var has_relaysmtp = false;
-    var has_httpworm = false;
-    var has_sqlinject = false;
-    var has_formulas = false;
+    var has_file = {
+        "BruteSSH.exe" : false,
+        "FTPCrack.exe" : false,
+        "relaySMTP.exe" : false,
+        "HTTPWorm.exe" : false,
+        "SQLInject.exe" : false,
+        "Formulas.exe" : false,
+    };
+
 
     var extra_server_ram = 2;
     if(ns.serverExists("pserv-0")) {
@@ -159,42 +159,25 @@ export async function main(ns) {
 
     var reschedules = 0;
     while(true) {
+        var changed = false;
+
         // Try to upgrade hacknodes
         await upgrade_hacknodes(ns);
 
-        files = ns.ls("home");
+        // Check if we have aquired any files since last tick.
+        var files_in_home = ns.ls("home");
+        for(let file in Object.keys(has_file)) {
+            if(!has_file[file] && files_in_home.includes(files)) {
+                changed = true;
+                has_file[file] = true;
+            }
+        }
 
-        // Check if anything has changed since last run
-        var changed = false;
-        if(!has_brutessh && files.includes("BruteSSH.exe")) {
-            changed = true;
-            has_brutessh = true;
-        }
-        if(!has_formulas && files.includes("Formulas.exe")) {
-            changed = true
-            has_formulas = true;
-        }
-        if(!has_ftpcrack && files.includes("FTPCrack.exe")) {
-            changed = true;
-            has_ftpcrack = true;
-        }
-        if(!has_relaysmtp && files.includes("relaySMTP.exe")) {
-            changed = true;
-            has_relaysmtp = true;
-        }
-        if(!has_httpworm && files.includes("HTTPWorm.exe")) {
-            changed = true;
-            has_httpworm = true;
-        }
-        if(!has_sqlinject && files.includes("SQLInject.exe")) {
-            changed = true;
-            has_sqlinject = true;
-        }
+        // Check if we want to change which server to hack.
         if(server_to_hack != await GetServerToHack(ns)) {
             changed = true;
             server_to_hack = await GetServerToHack(ns);
         }
-
 
         // Calculate if we can buy extra RAM for our servers
         var extra_server_ram_can_afford = extra_server_ram;
