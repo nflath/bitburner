@@ -18,10 +18,6 @@ class Op {
     }
 }
 
-// TODO: Unused now, need singularity API
-var SERVERS_TO_HACK = ["CSEC","I.I.I.I", "avmnite-02h", "run4theh111z", "fulcrumassets"];
-var SERVERS_HACKED = [];
-
 // Returns the 'best' server to hack.
 // TODO: May want to round-robin these.
 async function GetServerToHack(ns) {
@@ -51,7 +47,6 @@ async function GetServerToHack(ns) {
 
 async function schedule(ns, target, op, max_threads_per_second, queues, offset) {
     ns.print("Scheduling for ", op);
-    var fn = null;
 
     var ram_fraction = 0;
     var script_ram = 0;
