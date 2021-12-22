@@ -1,0 +1,87 @@
+/** @param {NS} ns **/
+var scripts = ["hack.ns", "grow.ns", "weaken.ns", "early-hack-template.ns"]
+
+export async function get_total_ram(ns) {
+    var total_ram = 0
+    await for_each_server(ns, async function(ns, server) {
+        total_ram += await get_server_max_ram(ns, server)
+    });
+    return total_ram
+}
+
+export async function for_each_server(ns, fn) {
+
+    async function for_each_server_h(ns, server, fn, from) {
+        var servers = await ns.scan(server);
+        await fn(ns, server);
+        for (let item of servers) {
+            if (item != from) {
+                await for_each_server_h(ns, item, fn, server)
+            }
+        }
+    }
+    await for_each_server_h(ns, "home", fn, "")
+}
+
+export async function get_server_max_ram(ns, server) {
+    if (server == "home") {
+        return await ns.getServerMaxRam(server) - 20; // Save 20GB for running test programs
+    }
+    return await ns.getServerMaxRam(server)
+}
+
+export async function install_script_on_all_servers(ns, script, target) {
+    await for_each_server(ns, async function (ns, server) {
+        var has_root = ns.hasRootAccess(server);
+        if (has_root) {
+            var num_threads = Math.floor( (await get_server_max_ram(ns, server) - await ns.getServerUsedRam(server)) / await ns.getScriptRam(script))
+            ns.print("num_threads: ", num_threads, script, target)
+            if (num_threads > 0) {
+                await ns.exec(script, server, num_threads, target);
+            }
+        }
+    });
+}
+
+export async function setup_servers(ns) {
+    await for_each_server(ns, async function (ns, server) {
+        var files = await ns.ls("home");
+        var num_server_ports_can_open = 0;
+        if (files.includes("BruteSSH.exe")) {
+            await ns.brutessh(server);
+            num_server_ports_can_open += 1;
+        }
+        if (files.includes("FTPCrack.exe")) {
+            await ns.ftpcrack(server);
+            num_server_ports_can_open += 1
+        }
+        if (files.includes("HTTPWorm.exe")) {
+            await ns.httpworm(server);
+            num_server_ports_can_open += 1
+        }
+        if (files.includes("relaySMTP.exe")) {
+            await ns.relaysmtp(server);
+            num_server_ports_can_open += 1
+        }
+        if (files.includes("SQLInject.exe")) {
+            await  ns.sqlinject(server);
+            num_server_ports_can_open += 1
+        }
+        var can_nuke = await ns.getServerNumPortsRequired(server) <= num_server_ports_can_open;
+        var has_root = await ns.hasRootAccess(server);
+
+        if (can_nuke && !has_root) {
+            await ns.nuke(server)
+        }
+
+        if (server != "home") {
+            for (let script of scripts) {
+                await ns.scp(script, "home", server)
+            }
+        }
+        for (let script of scripts) {
+            ns.print("script:", script)
+            await ns.scriptKill(script, server)
+        }
+    });
+}

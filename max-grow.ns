@@ -1,0 +1,32 @@
+/** @param {NS} ns **/
+import {get_total_ram, get_server_max_ram, for_each_server, install_script_on_all_servers, setup_servers} from "util.ns";
+
+
+export async function run_op(ns, script, target, threads) {
+    var remaining_threads = threads;
+    await for_each_server(ns, async function(ns, server) {
+        if(remaining_threads >= 0) {
+            var num_threads_can_run = (await get_server_max_ram(ns,server)-await ns.getServerUsedRam(server))/await ns.getScriptRam(script)
+            var threads_to_run = Math.min(num_threads_can_run, remaining_threads)
+            remaining_threads -= threads_to_run
+            ns.print(threads_to_run)
+            if(threads_to_run > 0) {
+            	ns.exec(script, server, threads_to_run, target, threads_to_run)
+            }
+        }
+    });
+}
+
+export async function main(ns) {
+        var target = ns.args[0]
+        var weak_frac = ns.args[1]
+		var total_ram = await get_total_ram(ns);
+		var grow_threads = Math.floor((total_ram * (1 - weak_frac) ) / await ns.getScriptRam("grow.ns"))
+		var weak_threads = Math.floor((total_ram * weak_frac ) / await ns.getScriptRam("weaken.ns"))
+        await setup_servers(ns)
+        ns.print(total_ram, " ", grow_threads, " ", weak_threads)	
+
+		await run_op(ns, "grow.ns", ns.args[0], grow_threads)
+		await run_op(ns, "weaken.ns", ns.args[0], weak_threads)
+
+}
