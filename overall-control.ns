@@ -21,28 +21,40 @@ class Op {
 // Returns the 'best' server to hack.
 // TODO: May want to round-robin these.
 async function GetServerToHack(ns) {
-    var hacking_level_multiplier = .25;
     var server_to_required_hacking_level = {};
+    var server_to_max_money = {};
 
     await for_each_server(ns, async function (ns, server) {
         if(ns.hasRootAccess(server)) {
             server_to_required_hacking_level[server] = ns.getServerRequiredHackingLevel(server);
+            server_to_max_money[server] = ns.getServerMaxMoney(server);
         }
     });
 
-    var server_to_hack = ["n00dles", 0];
+    var server_to_hack = ["n00dles", ns.getServerMaxMoney("n00dles")];
     var hacking_level = ns.getHackingLevel();
 
     // TODO: use maximum money instead of hacking difficulty
     for(let server of Object.keys(server_to_required_hacking_level)) {
-        var val = server_to_required_hacking_level[server];
-        if(val * 4 < hacking_level) {
-            if(val > server_to_hack[1]) {
-                server_to_hack = [server, val];
+        var possible_hacking_level = server_to_required_hacking_level[server];
+        if(possible_hacking_level * 4 < hacking_level) {
+            if(server_to_max_money[server] > server_to_hack[1]) {
+                server_to_hack = [server, server_to_max_money[server]];
             }
         }
     }
     return server_to_hack[0];
+}
+
+async function GetAllHackableServers(ns) {
+    var hackable_servers = [];
+    await for_each_server(ns, async function (ns, server) {
+        if(ns.hasRootAccess(server) && ns.getServerMaxMoney(server) != 0) {
+            ns.print("Hackable server: ", server)
+            hackable_servers.push(server);
+        }
+    });
+    return hackable_servers;
 }
 
 async function schedule(ns, target, op, max_threads_per_second, queues, offset) {
@@ -135,7 +147,6 @@ export async function main(ns) {
         "Formulas.exe" : false,
     };
 
-
     var extra_server_ram = 2;
     if(ns.serverExists("pserv-0")) {
       extra_server_ram = ns.getServerMaxRam("pserv-0");
@@ -153,8 +164,9 @@ export async function main(ns) {
     };
 
     var reschedules = 0;
+    var changed = true;
+
     while(true) {
-        var changed = false;
 
         // Try to upgrade hacknodes
         await upgrade_hacknodes(ns);
@@ -162,7 +174,7 @@ export async function main(ns) {
         // Check if we have aquired any files since last tick.
         var files_in_home = ns.ls("home");
         for(let file in Object.keys(has_file)) {
-            if(!has_file[file] && files_in_home.includes(files)) {
+            if(!has_file[file] && files_in_home.includes(file)) {
                 changed = true;
                 has_file[file] = true;
             }
@@ -181,9 +193,10 @@ export async function main(ns) {
         }
 
         if(extra_server_ram_can_afford > extra_server_ram) {
+            changed = true;
             await GetNewServers(ns, extra_server_ram_can_afford);
             extra_server_ram = extra_server_ram_can_afford;
-            changed = true;
+
         }
 
         ns.print("Changed", changed, ns.ls("home").includes("Formulas.exe"));
@@ -208,10 +221,20 @@ export async function main(ns) {
                 };
             } else {
                 // We don't have formulas.exe installed, just fall back
-                ns.print("Installing targeting ", server_to_hack);
-                await install_script_on_all_servers(ns, "early-hack-template.ns", server_to_hack);
+                var hackable_servers = await GetAllHackableServers(ns);
+
+                var i = 0;
+
+                await for_each_server(ns, async function (ns, server) {
+                    if (ns.hasRootAccess(server)) {
+                        var num_threads = Math.floor( (await get_server_max_ram(ns, server) - await ns.getServerUsedRam(server)) / await ns.getScriptRam("early-hack-template.ns"));
+                        ns.exec("early-hack-template.ns", server, num_threads, hackable_servers[i]);
+                        i = (i + 1) % hackable_servers.length;
+                    }
+                });
             }
         }
+
         if(ns.ls("home").includes("Formulas.exe")) {
             for(let q of Object.keys(queues)) {
                 var last_threads_per_second = 0;
@@ -231,7 +254,7 @@ export async function main(ns) {
                 }
             }
         }
-
+        changed = false
         await ns.sleep(1000); // Sleep for 1 second.
     }
 }
