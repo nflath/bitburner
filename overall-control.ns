@@ -1,61 +1,10 @@
 // TODO: Better optimization of hack/weaken/grow.
 // TODO: Memory change on home computer
 // TODO: What can be automated? Crime?  Factions?  Augmentation aquiring?  Augmentation installing? Buy darkweb connection? Buying *from* darkweb?
-import {get_total_ram, get_server_max_ram, for_each_server, install_script_on_all_servers, setup_servers} from "util.ns";
+import {get_total_ram, get_server_max_ram, for_each_server, setup_servers} from "util.ns";
 import {upgrade_hacknodes} from "hacknet.ns";
-
-// Todo: Split advanced scheudle rto different file
-
-var weaken_fraction = .25;
-var grow_fraction = .73;
-var hack_fraction = .02;
-
-class Op {
-    constructor(op_script, threads, target) {
-        this.op_script = op_script;
-        this.threads = threads;
-        this.target = target;
-    }
-}
-
-// Returns the 'best' server to hack.
-// TODO: May want to round-robin these.
-async function GetServerToHack(ns) {
-    var server_to_required_hacking_level = {};
-    var server_to_max_money = {};
-
-    await for_each_server(ns, async function (ns, server) {
-        if(ns.hasRootAccess(server)) {
-            server_to_required_hacking_level[server] = ns.getServerRequiredHackingLevel(server);
-            server_to_max_money[server] = ns.getServerMaxMoney(server);
-        }
-    });
-
-    var server_to_hack = ["n00dles", ns.getServerMaxMoney("n00dles")];
-    var hacking_level = ns.getHackingLevel();
-
-    // TODO: use maximum money instead of hacking difficulty
-    for(let server of Object.keys(server_to_required_hacking_level)) {
-        var possible_hacking_level = server_to_required_hacking_level[server];
-        if(possible_hacking_level * 4 < hacking_level) {
-            if(server_to_max_money[server] > server_to_hack[1]) {
-                server_to_hack = [server, server_to_max_money[server]];
-            }
-        }
-    }
-    return server_to_hack[0];
-}
-
-async function GetAllHackableServers(ns) {
-    var hackable_servers = [];
-    await for_each_server(ns, async function (ns, server) {
-        if(ns.hasRootAccess(server) && ns.getServerMaxMoney(server) != 0) {
-            ns.print("Hackable server: ", server)
-            hackable_servers.push(server);
-        }
-    });
-    return hackable_servers;
-}
+import {GetAdvancedScheduler} from "advanced_scheduler.ns";
+import {GetBasicScheduler} from "basic_scheduler.ns";
 
 async function schedule(ns, target, op, max_threads_per_second, queues, offset) {
     ns.print("Scheduling for ", op);
@@ -137,7 +86,6 @@ export async function run_op(ns, op, ts) {
 
 export async function main(ns) {
     // Always run an install first
-    var server_to_hack = await GetServerToHack(ns);
     var has_file = {
         "BruteSSH.exe" : false,
         "FTPCrack.exe" : false,
@@ -163,7 +111,7 @@ export async function main(ns) {
         'grow': 0
     };
 
-    var reschedules = 0;
+    var scheduler = null;
     var changed = true;
 
     while(true) {
@@ -178,12 +126,6 @@ export async function main(ns) {
                 changed = true;
                 has_file[file] = true;
             }
-        }
-
-        // Check if we want to change which server to hack.
-        if(server_to_hack != await GetServerToHack(ns)) {
-            changed = true;
-            server_to_hack = await GetServerToHack(ns);
         }
 
         // Calculate if we can buy extra RAM for our servers
@@ -202,59 +144,22 @@ export async function main(ns) {
         ns.print("Changed", changed, ns.ls("home").includes("Formulas.exe"));
 
         if(changed) {
+            ns.print("Changed")
             await setup_servers(ns);
             if(ns.ls("home").includes("Formulas.exe")) {
-                ns.print("Scheduling");
-                queues = {
-                    'hack' : [],
-                    'weaken': [],
-                    'grow': []
-                };
-                reschedules = 0;
-                await schedule(ns, server_to_hack , 'weaken', 0, queues, 0);
-                await schedule(ns, server_to_hack , 'grow', 0, queues, 0);
-                await schedule(ns, server_to_hack , 'hack', 0, queues, queues['weaken'].length * 1000);
-                max_last_threads = {
-                    'hack' : 0,
-                    'weaken': 0,
-                    'grow': 0
-                };
+                scheduler = GetAdvancedScheduler(ns);
+                ns.print("GetAdvancedScheduler");
             } else {
-                // We don't have formulas.exe installed, just fall back
-                var hackable_servers = await GetAllHackableServers(ns);
-
-                var i = 0;
-
-                await for_each_server(ns, async function (ns, server) {
-                    if (ns.hasRootAccess(server)) {
-                        var num_threads = Math.floor( (await get_server_max_ram(ns, server) - await ns.getServerUsedRam(server)) / await ns.getScriptRam("early-hack-template.ns"));
-                        ns.exec("early-hack-template.ns", server, num_threads, hackable_servers[i]);
-                        i = (i + 1) % hackable_servers.length;
-                    }
-                });
+                scheduler = GetBasicScheduler(ns);
             }
+            ns.print(scheduler);
+            await scheduler.initialize();
         }
-
-        if(ns.ls("home").includes("Formulas.exe")) {
-            for(let q of Object.keys(queues)) {
-                var last_threads_per_second = 0;
-                while(queues[q].length > 0 &&
-                      queues[q][0][0] < Date.now()) {
-                    await run_op(ns, queues[q][0][1], queues[q][0][0]);
-                    last_threads_per_second = queues[q][0][1].threads;
-                    queues[q].splice(0,1);
-                }
-                max_last_threads[q] = Math.max(max_last_threads[q], last_threads_per_second);
-                if(queues[q].length == 0) {
-                    if(reschedules >= 1000) {
-                        changed = true;
-                    }
-                    reschedules += 1;
-                    await schedule(ns, server_to_hack, q, last_threads_per_second, queues, 0);
-                }
-            }
-        }
-        changed = false
+        ns.print("About to tick ", Date.now());
+        await scheduler.tick();
+        ns.print("Tickeed", Date.now());
+        changed = false;
         await ns.sleep(1000); // Sleep for 1 second.
+        await ns.print("Sleeped", Date.now());
     }
 }

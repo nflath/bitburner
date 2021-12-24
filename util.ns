@@ -15,6 +15,7 @@ var PORT_OPENING_FILES = {
 export async function for_each_server(ns, fn) {
     async function for_each_server_h(ns, server, fn, from) {
         var servers = await ns.scan(server);
+        ns.print("About to call fn on server: ",server);
         await fn(ns, server);
         for (let item of servers) {
             if (item != from) {
@@ -36,6 +37,14 @@ export async function get_server_max_ram(ns, server) {
     return server_max_ram;
 }
 
+export async function get_server_available_ram(ns, server) {
+    var server_ram = await ns.getServerMaxRam(server) - await ns.getServerUsedRam(server);;
+    if (server == HOME) {
+        return server_ram - HOME_RESERVED_RAM;
+    }
+    return server_ram;
+}
+
 // Returns total RAM in the network.
 export async function get_total_ram(ns) {
     var total_ram = 0
@@ -45,12 +54,20 @@ export async function get_total_ram(ns) {
     return total_ram
 }
 
+// Returns total RAM in the network.
+export async function get_total_available_ram(ns) {
+    var total_ram = 0
+    await for_each_server(ns, async function(ns, server) {
+        total_ram += await ns.getServerMaxRam(server) - await ns.getServerUsedRam(server);;
+    });
+    return total_ram-HOME_RESERVED_RAM;
+}
+
 // Starts the given script/target combination on all reachable servers.
 // TODO: Expand to a normal arglist.
 export async function install_script_on_all_servers(ns, script, target) {
     await for_each_server(ns, async function (ns, server) {
-        var has_root = ns.hasRootAccess(server);
-        if (has_root) {
+        if (ns.hasRootAccess(server)) {
             var num_threads = Math.floor( (await get_server_max_ram(ns, server) - await ns.getServerUsedRam(server)) / await ns.getScriptRam(script))
             if (num_threads > 0) {
                 await ns.exec(script, server, num_threads, target);
@@ -89,6 +106,41 @@ export async function setup_servers(ns) {
 
         for (let script of SCRIPTS) {
             await ns.scriptKill(script, server)
+        }
+    });
+}
+
+// Returns whether the given script is running anywhere on our network.
+export async function running(ns, script) {
+    var result = false;
+    await for_each_server(ns, async function(ns, server) {
+        var processes = ns.ps(server);
+        for(let i = 0; i < processes.length; ++i) {
+            if(processes.filename == script) {
+                result = true;
+            }
+        }
+    });
+
+    return result;
+}
+
+export async function run_script(ns, script, threads, ...args) {
+    var remaining_threads = threads;
+    var server_ran = null;
+    await for_each_server(ns, async function(ns, server) {
+        ns.print(threads, "  ", remaining_threads, " ", server_ran, " ", script)
+        if(remaining_threads > 0 && ns.hasRootAccess(server)) {
+            var num_threads_can_run = (await get_server_available_ram(ns, server))
+            / await ns.getScriptRam(script);
+            var threads_to_run = Math.min(num_threads_can_run, remaining_threads);
+            ns.print("server: ", server, "theads: ", threads_to_run)
+            if(threads_to_run > 0 && threads_to_run == remaining_threads) {
+                remaining_threads -= threads_to_run;
+                server_ran = server;
+                ns.exec(script, server, threads_to_run, ...args);
+
+            }
         }
     });
 }
