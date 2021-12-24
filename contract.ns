@@ -1,7 +1,7 @@
 /** @param {NS} ns **/
-var input = [14,185,158,101,159,42,93,62,173,163,81,183,98,194,181,95,84,59,150,158,172,94,78,130,187,119,21,174,150,137,169,126,116,52,199,80,193,51,50,125,21];
 
-export function contract_stock(inp) {
+// TODO: This is n^2, see if I need to ever optimize it
+export function algorithmic_stock_trader_1(inp) {
     var i = 0;
     var max_profit = 0;
     while(i < inp.length) {
@@ -15,9 +15,30 @@ export function contract_stock(inp) {
     return max_profit;
 }
 
-export async function main(ns) {
-    while(true) {
-        ns.print(contract_stock(input));
-         await (ns.sleep(10000));
+export function solve_contract(filename, host) {
+    var type = ns.codingcontract.getContractType(filename, host);
+    var inp = ns.codingcontract.getData(filename, host);
+    if(type == "Algorithmic Stock Trader I") {
+        algorithmic_stock_trader_1(inp);
+        ns.codingcontract.attempt(answer, filename, host)
+    } else if(type == "Find Largest Prime Factor") {
+    } else if(type == "Subarray with Maximum Sum") {
+    } else if(type == "Total Ways to Sum") {
+    } else if(type == "Spiralize Matrix") {
+    } else if(type == "Array Jumping Game") {
+    } else if(type == "Merge Overlapping Intervals") {
+    } else if(type == "Generate IP Addresses") {
+    } else if(type == "Algorithmic Stock Trader I") {
+    } else if(type == "Algorithmic Stock Trader II") {
+    } else if(type == "Algorithmic Stock Trader III") {
+    } else if(type == "Algorithmic Stock Trader IV") {
+    } else if(type == "Minimum Path Sum in a Triangle") {
+    } else if(type == "Unique Paths in a Grid I") {
+    } else if(type == "Unique Paths in a Grid I") {
+    } else if(type == "Unique Paths in a Grid II") {
+    } else if(type == "Sanitize Parentheses in Expression") {
+    } else if(type == "Find All Valid Math Expressions") {
+    } else {
+        return False;
     }
 }
