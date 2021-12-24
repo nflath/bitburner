@@ -1,0 +1,40 @@
+    import { running, get_server_max_ram, get_total_ram, get_total_available_ram, for_each_server, run_script } from "util.ns";
+
+async function GetAllHackableServers(ns) {
+    var hackable_servers = [];
+    await for_each_server(ns, async function (ns, server) {
+        if(ns.hasRootAccess(server) && ns.getServerMaxMoney(server) != 0) {
+            ns.print("Hackable server: ", server)
+            hackable_servers.push(server);
+        }
+    });
+    return hackable_servers;
+}
+
+class BasicScheduler {
+
+    constructor(ns) {
+        this.ns = ns;
+    };
+
+    async initialize() {
+        var hackable_servers = await GetAllHackableServers(this.ns);
+        var i = 0;
+        await for_each_server(this.ns, async function (ns, server) {
+            if (ns.hasRootAccess(server)) {
+                var num_threads = Math.floor( (await get_server_max_ram(ns, server) - await ns.getServerUsedRam(server)) / await ns.getScriptRam("early-hack-template.ns"));
+                ns.exec("early-hack-template.ns", server, num_threads, hackable_servers[i]);
+                i = (i + 1) % hackable_servers.length;
+            }
+        });
+    }
+
+    async tick() {
+
+    }
+
+};
+
+export function GetBasicScheduler(ns) {
+    return new BasicScheduler(ns);
+}

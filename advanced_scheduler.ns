@@ -1,0 +1,128 @@
+    import { running, get_total_ram, get_total_available_ram, for_each_server, run_script } from "util.ns";
+
+    // Returns the 'best' server to hack.
+    async function GetServerToHack(ns) {
+        var server_to_required_hacking_level = {};
+        var server_to_max_money = {};
+        await for_each_server(ns, async function (ns, server) {
+            if (ns.hasRootAccess(server)) {
+                server_to_required_hacking_level[server] = ns.getServerRequiredHackingLevel(server);
+                server_to_max_money[server] = ns.getServerMaxMoney(server);
+            }
+        });
+
+        var server_to_hack = ["n00dles", ns.getServerMaxMoney("n00dles")];
+        var hacking_level = ns.getHackingLevel();
+
+        for (let server of Object.keys(server_to_required_hacking_level)) {
+            var possible_hacking_level = server_to_required_hacking_level[server];
+            if (possible_hacking_level * 4 < hacking_level) {
+                if (server_to_max_money[server] > server_to_hack[1]) {
+                    server_to_hack = [server, server_to_max_money[server]];
+                }
+            }
+        }
+        return server_to_hack[0];
+    }
+
+    var UNKNOWN = 0;
+    var INITIALIZING = 1;
+    var RUNNING = 2;
+
+    class AdvancedScheduler {
+
+
+        constructor(ns) {
+            this.state = UNKNOWN;
+            this.ns = ns;
+        }
+
+        async initialize() {
+            this.state = INITIALIZING;
+        }
+
+        async tick(ns) {
+            this.ns.print("AdvancedScheduler tick: ", this.state, " ", Date.now());
+            if (this.state == INITIALIZING) {
+
+                this.target = await GetServerToHack(this.ns);
+
+                var total_ram = await get_total_ram(this.ns);
+
+                if (await running(this.ns, "grow.ns") || await running(this.ns, "weaken.ns")) {
+                    return;
+                }
+
+                var grow_threads = Math.floor(total_ram / this.ns.getScriptRam("grow.ns")) / 4;
+                var weaken_threads = Math.floor(total_ram / this.ns.getScriptRam("weaken.ns")) / 4;
+                grow_threads = 4000
+                weaken_threads = 4000
+                var try_grow = false;
+                var try_weaken = false;
+                // Use half of threads to run grow(), the other half to run weaken()
+                if (this.ns.getServerMaxMoney(this.target) > this.ns.getServerMoneyAvailable(this.target)) {
+                    try_grow = true;
+                    await run_script(this.ns, "grow.ns", grow_threads, this.target);
+                }
+                if (try_grow ||
+                (this.ns.getServerSecurityLevel(this.target) > this.ns.getServerMinSecurityLevel(this.target))) {
+                    try_weaken = true;
+                    await this.ns.print("Try to run weaken");
+
+                    await run_script(this.ns, "weaken.ns", weaken_threads, this.target);
+                }
+                // Server is set up to start this.targeting.
+                if (!try_grow && !try_weaken) {
+                    this.state = RUNNING;
+                }
+                this.ns.print("try grow: ", try_grow, " ", try_weaken);
+                this.ns.print("Tick finished ", grow_threads, " ", weaken_threads, " ", this.ns.getServerMaxMoney(this.target) < this.ns.getServerMoneyAvailable(this.target),  " ", this.ns.getServerSecurityLevel(this.target) < this.ns.getServerMinSecurityLevel(this.target), "this.state: ", this.state )
+            }
+            if (this.state == RUNNING) {
+                this.ns.print("RUNNING");
+                var hack_time = this.ns.formulas.hacking.hackTime(this.ns.getServer(this.target), this.ns.getPlayer());
+                var grow_time = this.ns.formulas.hacking.growTime(this.ns.getServer(this.target), this.ns.getPlayer());
+                var weaken_time = this.ns.formulas.hacking.weakenTime(this.ns.getServer(this.target), this.ns.getPlayer());
+
+                var money = this.ns.getServerMoneyAvailable(this.target);
+                var max_money = this.ns.getServerMaxMoney(this.target);
+
+                var hack_percent =  (this.ns.formulas.hacking.hackPercent(this.ns.getServer(this.target), this.ns.getPlayer()))
+                var hack_threads = Math.floor(.25 / hack_percent);
+
+                var grow_threads = 1;
+                var grow_percent = this.ns.formulas.hacking.growPercent(this.ns.getServer(this.target),1, this.ns.getPlayer());
+                var max_grow_threads = 1000;
+                while(grow_percent < 34 && grow_threads < max_grow_threads) {
+                    grow_percent = this.ns.formulas.hacking.growPercent(
+                        this.ns.getServer(this.target),
+                        grow_threads,
+                        this.ns.getPlayer());
+
+                    grow_threads += 1;
+                }
+
+                var weaken_threads = 2000; // TODO: make this the right amount
+                var available_ram = await get_total_available_ram(this.ns);
+                var tried = false;
+                if(grow_threads*this.ns.getScriptRam("grow.ns") + hack_threads*this.ns.getScriptRam("hack.ns") + weaken_threads*this.ns.getScriptRam("weaken.ns") <
+                   available_ram ) {
+                    tried = true;
+                    await run_script(this.ns, "grow.ns", grow_threads,    this.target, weaken_time - grow_time + 200, Date.now());
+                    await run_script(this.ns, "weaken.ns", weaken_threads, this.target, 400, Date.now());
+                    await run_script(this.ns, "hack.ns", hack_threads,    this.target, weaken_time - hack_time, Date.now());
+
+                }
+
+            this.ns.print("Hack time: ", hack_time, " ", grow_time, " ", weaken_time);
+            this.ns.print("Hack %: ", hack_percent, " ", grow_percent);
+            this.ns.print("Threads: ", grow_threads, " ", hack_threads, " ", weaken_threads,  " ", grow_threads*this.ns.getScriptRam("grow.ns") + hack_threads*this.ns.getScriptRam("hack.ns") + " " +  weaken_threads*this.ns.getScriptRam("weaken.ns"), " ", available_ram);
+            this.ns.print("AdvancedScheduler done tick: ", this.state, " ", tried, " ", Date.now());
+
+            }
+        }
+    }
+
+    export function GetAdvancedScheduler(ns) {
+        return new AdvancedScheduler(ns);
+    }
