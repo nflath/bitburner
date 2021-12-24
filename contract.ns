@@ -1,7 +1,7 @@
 /** @param {NS} ns **/
 
-// TODO: This is n^2, see if I need to ever optimize it
-export function algorithmic_stock_trader_1(inp) {
+// TODO: This is n^2, see if I need to ever optimize it.
+function algorithmic_stock_trader_1(inp) {
     var i = 0;
     var max_profit = 0;
     while(i < inp.length) {
@@ -15,20 +15,57 @@ export function algorithmic_stock_trader_1(inp) {
     return max_profit;
 }
 
-export function solve_contract(filename, host) {
+function find_largest_prime_factor(num) {
+    var divisor = 2;
+    while( num != 1) {
+        while( num % divisor == 0) {
+            num = num / divisor;
+        }
+
+    }
+    return divisor;
+}
+
+// TODO: If we need to, increase performance.  Should be able to work backwards
+// marking positions as finishable in O(n) time.
+function total_ways_to_sum(arr) {
+
+    function dfs(start_index, target_index, array) {
+        if(start_index == target_index) {
+            return true;
+        }
+        var i = start_index;
+        while(i != start_index + array[index]) {
+            if dfs(i, target_index, array) {
+                return true;
+            }
+            i += 1;
+        }
+        return false;
+    }
+
+    return dfs(0, len(arr)-1, arr);
+}
+
+export function solve_contract(ns, filename, host) {
+    ns.codingcontract.attempt(get_answer(filename, host), filename, host);
+}
+
+export function get_answer(filename, host) {
     var type = ns.codingcontract.getContractType(filename, host);
     var inp = ns.codingcontract.getData(filename, host);
     if(type == "Algorithmic Stock Trader I") {
-        algorithmic_stock_trader_1(inp);
-        ns.codingcontract.attempt(answer, filename, host)
     } else if(type == "Find Largest Prime Factor") {
+        return find_largest_prime_factor(1);
     } else if(type == "Subarray with Maximum Sum") {
     } else if(type == "Total Ways to Sum") {
+        return total_ays_to_sum(inp);
     } else if(type == "Spiralize Matrix") {
     } else if(type == "Array Jumping Game") {
     } else if(type == "Merge Overlapping Intervals") {
     } else if(type == "Generate IP Addresses") {
     } else if(type == "Algorithmic Stock Trader I") {
+        return algorithmic_stock_trader_1(inp);
     } else if(type == "Algorithmic Stock Trader II") {
     } else if(type == "Algorithmic Stock Trader III") {
     } else if(type == "Algorithmic Stock Trader IV") {
