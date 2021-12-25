@@ -59,14 +59,29 @@ async function schedule(ns, target, op, max_threads_per_second, queues, offset) 
 
 export async function GetNewServers(ns, ram) {
    var i = 0;
-   while (i < ns.getPurchasedServerLimit()) {
-       var hostname = "pserv-" + i;
-       if(ns.serverExists(hostname)) {
-           await ns.deleteServer(hostname);
-       }
-       ns.purchaseServer(hostname, ram);
-       ++i;
-   }
+    while (i < ns.getPurchasedServerLimit()) {
+        var j = 0;
+        var hostname = "pserv-" + i;
+        if(ns.serverExists(hostname)) {
+            ns.deleteServer(hostname);
+        }
+        while(j < ns.getPurchasedServerLimit()) {
+
+            hostname = "pserv-" + i + "-" + j;
+            if(ns.serverExists(hostname)) {
+                ns.deleteServer(hostname);
+            }
+            j += 1;
+        }
+    }
+    // If deletes and purchases are called too soon, we may create a server with
+    // an incorrect name, so just wait to prevent this.
+    await ns.sleep(1000);
+    i = 0;
+    while(i < ns.getPurchasedServerLimit()) {
+        ns.purchaseServer(hostname, ram);
+        ++i;
+    }
 }
 
 export async function run_op(ns, op, ts) {
@@ -97,7 +112,7 @@ export async function main(ns) {
 
     var extra_server_ram = 2;
     if(ns.serverExists("pserv-0")) {
-      extra_server_ram = ns.getServerMaxRam("pserv-0");
+        extra_server_ram = ns.getServerMaxRam("pserv-0");
     }
 
     var queues = {
@@ -130,7 +145,11 @@ export async function main(ns) {
 
         // Calculate if we can buy extra RAM for our servers
         var extra_server_ram_can_afford = extra_server_ram;
-        while(ns.getServerMoneyAvailable("home") > (ns.getPurchasedServerLimit() * ns.getPurchasedServerCost(extra_server_ram_can_afford))) {
+        ns.print(extra_server_ram);
+        while(extra_server_ram_can_afford < ns.getPurchasedServerMaxRam() &&
+              (ns.getServerMoneyAvailable("home") > (ns.getPurchasedServerLimit() *
+
+                                                     ns.getPurchasedServerCost(extra_server_ram_can_afford)))) {
             extra_server_ram_can_afford *= 2;
         }
 
@@ -138,7 +157,6 @@ export async function main(ns) {
             changed = true;
             await GetNewServers(ns, extra_server_ram_can_afford);
             extra_server_ram = extra_server_ram_can_afford;
-
         }
 
         ns.print("Changed", changed, ns.ls("home").includes("Formulas.exe"));
@@ -155,11 +173,8 @@ export async function main(ns) {
             ns.print(scheduler);
             await scheduler.initialize();
         }
-        ns.print("About to tick ", Date.now());
         await scheduler.tick();
-        ns.print("Tickeed", Date.now());
         changed = false;
-        await ns.sleep(1000); // Sleep for 1 second.
-        await ns.print("Sleeped", Date.now());
+        await ns.sleep(1000); // Current tick time 1000ms.
     }
 }
