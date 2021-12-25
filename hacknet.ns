@@ -1,7 +1,9 @@
 /** @param {NS} ns **/
 
 // Buy all hacknet upgrades that will pay of within this timeframe.
-var HACKNET_MAX_HOURS_TO_PAYOFF = 48;
+// Set to 0 because hacknets to not drag the early game on; really, this should only be triggered once we switch to the advanced scheduler.
+
+var HACKNET_MAX_HOURS_TO_PAYOFF = 0;
 
 var BASE_HACKNET_DPS = 1.5;
 
