@@ -84,7 +84,7 @@ export async function setup_servers(ns) {
     await for_each_server(ns, async function (ns, server) {
         var files = await ns.ls("home");
         var num_server_ports_can_open = 0;
-        for(let file in Object.keys(PORT_OPENING_FILES)) {
+        for(let file in PORT_OPENING_FILES) {
             if(files.includes(file)) {
                 PORT_OPENING_FILES[file](ns,server);
                 num_server_ports_can_open += 1;
