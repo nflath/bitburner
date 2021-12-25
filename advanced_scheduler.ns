@@ -58,21 +58,18 @@ class AdvancedScheduler {
     async tick(ns) {
         this.ns.print("AdvancedScheduler tick: ", this.state, " ", Date.now());
         if (this.state == INITIALIZING) {
-
+            if (await running(this.ns, "grow.ns") || await running(this.ns, "weaken.ns")) {
+                return;
+            }
+            var proceed_to_run_state = true;
             for( let target of await GetAllHackableServers(this.ns)) {
                 var total_ram = await get_total_ram(this.ns);
-
-                if (await running(this.ns, "grow.ns") || await running(this.ns, "weaken.ns")) {
-                    return;
-                }
-
                 var grow_threads = Math.floor(total_ram / this.ns.getScriptRam("grow.ns")) / 4;
                 var weaken_threads = Math.floor(total_ram / this.ns.getScriptRam("weaken.ns")) / 4;
                 grow_threads = 4000;
                 weaken_threads = 4000;
                 var try_grow = false;
                 var try_weaken = false;
-                // Use half of threads to run grow(), the other half to run weaken()
                 if (this.ns.getServerMaxMoney(target) > this.ns.getServerMoneyAvailable(target)) {
                     try_grow = true;
                     await run_script(this.ns, "grow.ns", grow_threads, target);
@@ -85,11 +82,14 @@ class AdvancedScheduler {
                     await run_script(this.ns, "weaken.ns", weaken_threads, target);
                 }
                 // Server is set up to start targeting.
-                if (!try_grow && !try_weaken) {
-                    this.state = RUNNING;
+                if(try_grow || try_weaken) {
+                    proceed_to_run_state = true;
                 }
                 this.ns.print("try grow: ", try_grow, " ", try_weaken);
-                this.ns.print("Tick finished ", grow_threads, " ", weaken_threads, " ", this.ns.getServerMaxMoney(target) < this.ns.getServerMoneyAvailable(target),  " ", this.ns.getServerSecurityLevel(target) < this.ns.getServerMinSecurityLevel(target), "this.state: ", this.state )
+                this.ns.print("Tick finished ", grow_threads, " ", weaken_threads, " ", this.ns.getServerMaxMoney(target) < this.ns.getServerMoneyAvailable(target),  " ", this.ns.getServerSecurityLevel(target) < this.ns.getServerMinSecurityLevel(target), "this.state: ", this.state );
+            }
+            if (proceed_to_run_state) {
+                this.state = RUNNING;
             }
         }
         if (this.state == RUNNING) {
