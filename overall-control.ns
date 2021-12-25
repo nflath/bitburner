@@ -62,7 +62,7 @@ export async function GetNewServers(ns, ram) {
    while (i < ns.getPurchasedServerLimit()) {
        var hostname = "pserv-" + i;
        if(ns.serverExists(hostname)) {
-           ns.deleteServer(hostname);
+           await ns.deleteServer(hostname);
        }
        ns.purchaseServer(hostname, ram);
        ++i;

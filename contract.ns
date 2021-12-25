@@ -47,6 +47,69 @@ function total_ways_to_sum(arr) {
     return dfs(0, len(arr)-1, arr);
 }
 
+// TODO: there's probably a closed function for this
+export function unique_paths_in_a_grid_i(inp) {
+    max_row = inp[0];
+    max_col = inp[1];
+    row = max_row - 1;
+
+    while (row >= 0) {
+
+        col = max_col.length-1;
+        while(col >= 0) {
+
+            if ((row == inp.length-1)) {
+                if(col == inp[row].length-1) {
+                    solution[row][col] = 0;
+                } else {
+                    solution[row][col] = solution[row][col] + 1;
+                }
+            } else {
+                if(col == inp[row].length-1) {
+                    solution[row][col] = solution[row+1][col] + 1;
+                } else {
+                    solution[row][col] = solution[row+1][col] + solution[row+1][col+1];
+                }
+            }
+            col -= 1;
+        }
+        row -= 1;
+    }
+
+    return solution[0][0];
+}
+
+export function unique_paths_in_a_grid_ii(inp) {
+    row = inp.length-1;
+
+    while (row >= 0) {
+
+        col = inp[row].length-1;
+        while(col >= 0) {
+
+            if(inp[row][col] == 1) {
+                solution[row][col] = 0;
+            } else if ((row == inp.length-1)) {
+                if(col == inp[row].length-1) {
+                    solution[row][col] = 0;
+                } else {
+                    solution[row][col] = solution[row][col] + 1;
+                }
+            } else {
+                if(col == inp[row].length-1) {
+                    solution[row][col] = solution[row+1][col] + 1;
+                } else {
+                    solution[row][col] = solution[row+1][col] + solution[row+1][col+1];
+                }
+            }
+            col -= 1;
+        }
+        row -= 1;
+    }
+
+    return solution[0][0];
+}
+
 export function solve_contract(ns, filename, host) {
     ns.codingcontract.attempt(get_answer(filename, host), filename, host);
 }
@@ -71,8 +134,9 @@ export function get_answer(filename, host) {
     } else if(type == "Algorithmic Stock Trader IV") {
     } else if(type == "Minimum Path Sum in a Triangle") {
     } else if(type == "Unique Paths in a Grid I") {
-    } else if(type == "Unique Paths in a Grid I") {
+        return unique_paths_in_a_grid_i(inp);
     } else if(type == "Unique Paths in a Grid II") {
+        return unique_paths_in_a_grid_ii(inp);
     } else if(type == "Sanitize Parentheses in Expression") {
     } else if(type == "Find All Valid Math Expressions") {
     } else {
