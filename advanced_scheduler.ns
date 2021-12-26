@@ -7,7 +7,7 @@ var RUNNING = 2;
 class AdvancedScheduler {
     constructor(ns) {
         this.server_to_state = {};
-        this.initializing_threads = 4000;
+        this.initializing_threads = 8000;
         this.ns = ns;
     }
     async initialize(ns) {
