@@ -1,0 +1,29 @@
+import {get_total_ram, get_server_max_ram, for_each_server, setup_servers} from "util.ns";
+
+
+
+export async function main(ns) {
+    var from = {};
+    await for_each_server(ns, async function(ns, server) {
+        var servers = await ns.scan(server);
+        for(let child_server of servers) {
+            if(!(child_server in from)) {
+                from[child_server] = server;
+            }
+        }
+    });;
+    var i = 0;
+    var target = ns.args[0];
+    if (target == null) {
+        target = "w0r1d_d43m0n";
+    }
+    var result = target;
+    target = from[target];
+    while(target in from && target != "home" && i < 20 ) {
+        result = target + " -> " +  result;
+        target = from[target];
+        i += 1;
+    }
+    result = target + " -> " +  result;
+    ns.tprint(result);
+}
