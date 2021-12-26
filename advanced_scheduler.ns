@@ -1,18 +1,4 @@
-import { running, get_total_ram, get_total_available_ram, for_each_server, run_script } from "util.ns";
-
-async function GetAllHackableServers(ns) {
-    var hackable_servers = [];
-    var hacking_level = ns.getHackingLevel();
-    await for_each_server(ns, async function (ns, server) {
-        if(ns.hasRootAccess(server) && ns.getServerMaxMoney(server) != 0) {
-            var required_hacking_level = ns.getServerRequiredHackingLevel(server);
-            if (required_hacking_level * 4 < hacking_level) {
-                hackable_servers.push(server);
-            }
-        }
-    });
-    return hackable_servers;
-}
+import { get_all_hackable_servers, running, get_total_ram, get_total_available_ram, for_each_server, run_script } from "util.ns";
 
 var UNKNOWN = 0;
 var INITIALIZING = 1;
@@ -44,12 +30,12 @@ class AdvancedScheduler {
 
                 if (this.ns.getServerMaxMoney(server) > this.ns.getServerMoneyAvailable(server)) {
                     must_initialize = true;
-                    await run_script(this.ns, "grow.ns", grow_threads, server);
+                    await run_script(this.ns, "grow.ns", this.initializing_threads, server);
                 }
                 if (must_initialize ||
                     (this.ns.getServerSecurityLevel(server) > this.ns.getServerMinSecurityLevel(server))) {
                     must_initialize = true;
-                    await run_script(this.ns, "weaken.ns", weaken_threads, server);
+                    await run_script(this.ns, "weaken.ns", this.initializing_threads, server);
                 }
                 if(!must_initialize) {
                     this.server_to_state[server] = RUNNING;

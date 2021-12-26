@@ -130,6 +130,20 @@ export async function running(ns, script, ...args) {
     return result;
 }
 
+async function GetAllHackableServers(ns) {
+    var hackable_servers = [];
+    var hacking_level = ns.getHackingLevel();
+    await for_each_server(ns, async function (ns, server) {
+        if(ns.hasRootAccess(server) && ns.getServerMaxMoney(server) != 0) {
+            var required_hacking_level = ns.getServerRequiredHackingLevel(server);
+            if (required_hacking_level * 4 < hacking_level) {
+                hackable_servers.push(server);
+            }
+        }
+    });
+    return hackable_servers;
+}
+
 export async function run_script(ns, script, threads, ...args) {
     var remaining_threads = threads;
     var server_ran = null;

@@ -139,8 +139,8 @@ export async function main(ns) {
         // Check if we have aquired any files since last tick.
         var files_in_home = ns.ls("home");
         // TODO: Make sure this is working.
-        for(let file in Object.keys(has_file)) {
-            if(!has_file[file] && files in files_in_home) {
+        for(let file of Object.keys(has_file)) {
+            if(!has_file[file] && files_in_home.includes(file)) {
                 changed = true;
                 has_file[file] = true;
             }
