@@ -111,13 +111,18 @@ export async function setup_servers(ns) {
 }
 
 // Returns whether the given script is running anywhere on our network.
-export async function running(ns, script) {
+export async function running(ns, script, ...args) {
     var result = false;
+    var reason = null;
     await for_each_server(ns, async function(ns, server) {
         var processes = ns.ps(server);
         for(let i = 0; i < processes.length; ++i) {
-            if(processes.filename == script) {
-                result = true;
+            if(processes[i].filename == script) {
+                var arg_missing = false;
+                for(let arg of args) {
+                    arg_missing |= !(arg in processes[i].args) {
+                }
+                result != !arg_missing;
             }
         }
     });

@@ -1,4 +1,4 @@
-    import { running, get_total_ram, get_total_available_ram, for_each_server, run_script } from "util.ns";
+import { running, get_total_ram, get_total_available_ram, for_each_server, run_script } from "util.ns";
 
 async function GetAllHackableServers(ns) {
     var hackable_servers = [];
@@ -14,127 +14,88 @@ async function GetAllHackableServers(ns) {
     return hackable_servers;
 }
 
-// Returns the 'best' server to hack.
-async function GetServerToHack(ns) {
-    var server_to_required_hacking_level = {};
-    var server_to_max_money = {};
-    await for_each_server(ns, async function (ns, server) {
-        if (ns.hasRootAccess(server)) {
-            server_to_required_hacking_level[server] = ns.getServerRequiredHackingLevel(server);
-            server_to_max_money[server] = ns.getServerMaxMoney(server);
-        }
-    });
-
-    var server_to_hack = ["n00dles", ns.getServerMaxMoney("n00dles")];
-    var hacking_level = ns.getHackingLevel();
-
-    for (let server of Object.keys(server_to_required_hacking_level)) {
-        var possible_hacking_level = server_to_required_hacking_level[server];
-        if (possible_hacking_level * 4 < hacking_level) {
-            if (server_to_max_money[server] > server_to_hack[1]) {
-                server_to_hack = [server, server_to_max_money[server]];
-            }
-        }
-    }
-    return server_to_hack[0];
-}
-
 var UNKNOWN = 0;
 var INITIALIZING = 1;
 var RUNNING = 2;
 
 class AdvancedScheduler {
-
-
     constructor(ns) {
-        this.state = UNKNOWN;
+        this.server_to_state = {};
+        this.initializing_threads = 4000;
         this.ns = ns;
     }
-
-    async initialize() {
-        this.state = INITIALIZING;
+    async initialize(ns) {
     }
-
     async tick(ns) {
-        this.ns.print("AdvancedScheduler tick: ", this.state, " ", Date.now());
-        if (this.state == INITIALIZING) {
-            if (await running(this.ns, "grow.ns") || await running(this.ns, "weaken.ns")) {
-                return;
-            }
-            var proceed_to_run_state = true;
-            for( let target of await GetAllHackableServers(this.ns)) {
-                var total_ram = await get_total_ram(this.ns);
-                var grow_threads = Math.floor(total_ram / this.ns.getScriptRam("grow.ns")) / 4;
-                var weaken_threads = Math.floor(total_ram / this.ns.getScriptRam("weaken.ns")) / 4;
-                grow_threads = 4000;
-                weaken_threads = 4000;
-                var try_grow = false;
-                var try_weaken = false;
-                if (this.ns.getServerMaxMoney(target) > this.ns.getServerMoneyAvailable(target)) {
-                    try_grow = true;
-                    await run_script(this.ns, "grow.ns", grow_threads, target);
-                }
-                if (try_grow ||
-                    (this.ns.getServerSecurityLevel(target) > this.ns.getServerMinSecurityLevel(target))) {
-                    try_weaken = true;
-                    await this.ns.print("Try to run weaken");
+        for(let server of await GetAllHackableServers(this.ns)) {
 
-                    await run_script(this.ns, "weaken.ns", weaken_threads, target);
-                }
-                // Server is set up to start targeting.
-                if(try_grow || try_weaken) {
-                    proceed_to_run_state = true;
-                }
-                this.ns.print("try grow: ", try_grow, " ", try_weaken);
-                this.ns.print("Tick finished ", grow_threads, " ", weaken_threads, " ", this.ns.getServerMaxMoney(target) < this.ns.getServerMoneyAvailable(target),  " ", this.ns.getServerSecurityLevel(target) < this.ns.getServerMinSecurityLevel(target), "this.state: ", this.state );
+            if(!(server in this.server_to_state)) {
+                this.server_to_state[server] = INITIALIZING;
             }
-            if (proceed_to_run_state) {
-                this.state = RUNNING;
+            if(this.server_to_state[server] == INITIALIZING) {
+
+                if (await running(this.ns, "grow.ns", server) ||
+                    await running(this.ns, "weaken.ns", server)) {
+                    this.ns.print("Already running: ", server);
+                    continue;
+                }
+
+                var must_initialize = false;
+
+                if (this.ns.getServerMaxMoney(server) > this.ns.getServerMoneyAvailable(server)) {
+                    must_initialize = true;
+                    await run_script(this.ns, "grow.ns", grow_threads, server);
+                }
+                if (must_initialize ||
+                    (this.ns.getServerSecurityLevel(server) > this.ns.getServerMinSecurityLevel(server))) {
+                    must_initialize = true;
+                    await run_script(this.ns, "weaken.ns", weaken_threads, server);
+                }
+                if(!must_initialize) {
+                    this.server_to_state[server] = RUNNING;
+                }
             }
-        }
-        if (this.state == RUNNING) {
-            var hackable_servers = await GetAllHackableServers(this.ns);
-            for( let target of hackable_servers) {
-                var hack_time = this.ns.formulas.hacking.hackTime(this.ns.getServer(target), this.ns.getPlayer());
-                var grow_time = this.ns.formulas.hacking.growTime(this.ns.getServer(target), this.ns.getPlayer());
-                var weaken_time = this.ns.formulas.hacking.weakenTime(this.ns.getServer(target), this.ns.getPlayer());
+            if(this.server_to_state[server] == RUNNING) {
+                var hack_time = this.ns.formulas.hacking.hackTime(this.ns.getServer(server), this.ns.getPlayer());
+                var grow_time = this.ns.formulas.hacking.growTime(this.ns.getServer(server), this.ns.getPlayer());
+                var weaken_time = this.ns.formulas.hacking.weakenTime(this.ns.getServer(server), this.ns.getPlayer());
 
-                var money = this.ns.getServerMoneyAvailable(target);
-                var max_money = this.ns.getServerMaxMoney(target);
+                var money = this.ns.getServerMoneyAvailable(server);
+                var max_money = this.ns.getServerMaxMoney(server);
 
-                var hack_percent =  (this.ns.formulas.hacking.hackPercent(this.ns.getServer(target), this.ns.getPlayer()))
+                var hack_percent =  (this.ns.formulas.hacking.hackPercent(this.ns.getServer(server), this.ns.getPlayer()));
                 var hack_threads = Math.floor(.25 / hack_percent);
 
                 var grow_threads = 1;
-                var grow_percent = this.ns.formulas.hacking.growPercent(this.ns.getServer(target),1, this.ns.getPlayer());
+                var grow_percent = this.ns.formulas.hacking.growPercent(this.ns.getServer(server),1, this.ns.getPlayer());
                 var max_grow_threads = 1000;
                 while(grow_percent < 34 && grow_threads < max_grow_threads) {
                     grow_percent = this.ns.formulas.hacking.growPercent(
-                        this.ns.getServer(target),
+                        this.ns.getServer(server),
                         grow_threads,
                         this.ns.getPlayer());
 
                     grow_threads += 1;
                 }
 
-                var weaken_threads = 2000; // TODO: make this the right amount
+                 // TODO: Make this the correct amount, based on the server's max security level
+                var weaken_threads = 2000;
                 var available_ram = await get_total_available_ram(this.ns);
                 var tried = false;
-                if(grow_threads*this.ns.getScriptRam("grow.ns") + hack_threads*this.ns.getScriptRam("hack.ns") + weaken_threads*this.ns.getScriptRam("weaken.ns") <
-                   available_ram ) {
-                    tried = true;
-                    await run_script(this.ns, "grow.ns", grow_threads,    target, weaken_time - grow_time + 200, Date.now());
-                    await run_script(this.ns, "weaken.ns", weaken_threads, target, 400, Date.now());
-                    await run_script(this.ns, "hack.ns", hack_threads,    target, weaken_time - hack_time, Date.now());
+                var ram_for_attempt = (grow_threads*this.ns.getScriptRam("grow.ns") +
+                                       hack_threads*this.ns.getScriptRam("hack.ns") +
+                                       weaken_threads*this.ns.getScriptRam("weaken.ns"));
 
+                if(ram_for_attempt < available_ram) {
+                    await run_script(this.ns, "grow.ns", grow_threads,    server, weaken_time - grow_time + 200, Date.now());
+                    await run_script(this.ns, "weaken.ns", weaken_threads, server, 400, Date.now());
+                    await run_script(this.ns, "hack.ns", hack_threads,    server, weaken_time - hack_time, Date.now());
                 }
 
                 this.ns.print("Hack time: ", hack_time, " ", grow_time, " ", weaken_time);
                 this.ns.print("Hack %: ", hack_percent, " ", grow_percent);
                 this.ns.print("Threads: ", grow_threads, " ", hack_threads, " ", weaken_threads,  " ", grow_threads*this.ns.getScriptRam("grow.ns") + hack_threads*this.ns.getScriptRam("hack.ns") + " " +  weaken_threads*this.ns.getScriptRam("weaken.ns"), " ", available_ram);
-
             }
-            this.ns.print("AdvancedScheduler done tick: ", this.state, " ", tried, " ", Date.now(), " ", hackable_servers);
         }
     }
 }
