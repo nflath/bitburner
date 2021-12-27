@@ -5,6 +5,7 @@
 
 var HACKNET_MAX_HOURS_TO_PAYOFF = 0;
 
+// TODO - Fix, this isn't right in all BitNodes.
 var BASE_HACKNET_DPS = 1.5;
 
 export async function upgrade_hacknodes(ns) {

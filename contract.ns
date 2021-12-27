@@ -97,43 +97,106 @@ function unique_paths_in_a_grid_ii(inp) {
     return solution[0][0];
 }
 
+function spiralize_matrix(inp) {
+    const result = [];
+    let h = matrix.length;
+    let w = matrix[0].length;
+
+    if(w === 1 && h === 1) return [matrix[0][0]];
+
+    var r = 0;
+    var c = 0;
+
+    while(w > 1 && h > 1){
+
+        // top horizontal
+        for(let col=c; col<c + w; col++) {
+            result.push(matrix[r][col]);
+        }
+
+        // right vertical
+        for(let row=r + 1; row < r + h - 1; row++){
+            result.push(matrix[row][c + w - 1]);
+        }
+
+        // bottom horizontal
+        for(let col=c + w - 1; col >= r; col--){
+            result.push(matrix[r + h - 1][col]);
+        }
+
+        // left vertical
+        for(let row = r + h - 2; row >= r + 1; row--){
+            result.push(matrix[row][c]);
+        }
+
+        w -= 2;
+        h -= 2;
+        r++;
+        c++;
+    }
+
+    if(w <= 0 || h <= 0) return result;
+
+    if(w === 1){
+        for(let row = r; row< r + h; row++){
+            result.push(matrix[row][c]);
+        }
+    }
+    else{
+        for(let col = c; col < c + w; col++){
+           result.push(matrix[r][col]);
+       }
+    }
+
+
+    return result;
+};
+
 
 var types_seen = {};
 export async function get_answer(ns, host, filename) {
     var type = ns.codingcontract.getContractType(filename, host);
+    types_seen[type] = 1
     var inp = ns.codingcontract.getData(filename, host);
+    var answer = false;
     ns.print("get_answer: ", filename, " ", host, type, " ", inp);
     if (type == "Find Largest Prime Factor") {
-        return find_largest_prime_factor(inp);
+        anwer = find_largest_prime_factor(inp);
     } else if (type == "Subarray with Maximum Sum") {
     } else if (type == "Total Ways to Sum") {
     } else if (type == "Spiralize Matrix") {
+        answer = spiralize_matrix(inp);
     } else if (type == "Array Jumping Game") {
-        return array_jumping(inp);
+        answer = array_jumping(inp);
     } else if (type == "Merge Overlapping Intervals") {
     } else if (type == "Generate IP Addresses") {
     } else if (type == "Algorithmic Stock Trader I") {
-        return algorithmic_stock_trader_1(inp);
+        answer = algorithmic_stock_trader_1(inp);
     } else if (type == "Algorithmic Stock Trader II") {
     } else if (type == "Algorithmic Stock Trader III") {
     } else if (type == "Algorithmic Stock Trader IV") {
     } else if (type == "Minimum Path Sum in a Triangle") {
     } else if (type == "Unique Paths in a Grid I") {
-        return unique_paths_in_a_grid_i(inp);
+        answer = unique_paths_in_a_grid_i(inp);
     } else if (type == "Unique Paths in a Grid II") {
-        return unique_paths_in_a_grid_ii(inp);
+        answer = unique_paths_in_a_grid_ii(inp);
     } else if (type == "Sanitize Parentheses in Expression") {
     } else if (type == "Find All Valid Math Expressions") {
     }
-    return false;
+    if(answer == false) {
+        types_seen[type] = 0;
+    }
+    return answer;
 };
 
 var solved_contracts = {};
 var failed_contracts = {};
 
 async function solve_all_contracts(ns) {
+    var solved_contracts = [];
     await for_each_server(ns, async function (ns, server) {
-        ns.print(server);
+
+
         for (let file of ns.ls(server)) {
             if ([server, file] in solved_contracts) {
                 continue;
@@ -147,7 +210,8 @@ async function solve_all_contracts(ns) {
                 if (ans != false) {
                     ns.print("Answer: ", ans);
                     var result = ns.codingcontract.attempt(ans, file, server);
-                    if (result != false) {
+                    solved_contracts += [[server, file, ans, result]]
+                     if (result != false) {
                         solved_contracts[[server, file]] = true;
                         ns.print("Solved contract:", server, " ", file);
                     } else {
@@ -160,6 +224,7 @@ async function solve_all_contracts(ns) {
             }
         }
     });
+    ns.print(solved_contracts)
 }
 
 
