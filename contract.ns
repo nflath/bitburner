@@ -152,6 +152,23 @@ function spiralize_matrix(inp) {
     return result;
 };
 
+function merge_overlapping_intervals(inp) {
+    //Sort by beginning;
+    inp.sort(function(a, b) {return a[0] - b[0]});
+    var result = [inp[0]]
+
+    var index = 1;
+    while(index < inp.length) {
+        if(inp[index][0] < result[result.length-1][1]) {
+            result[result.length-1][1] = inp[index][1];
+        } else {
+            result.push(inp[index]);
+        }
+        inp += 1;
+    }
+    return result;
+}
+
 
 var types_seen = {};
 export async function get_answer(ns, host, filename) {
@@ -169,6 +186,7 @@ export async function get_answer(ns, host, filename) {
     } else if (type == "Array Jumping Game") {
         answer = array_jumping(inp);
     } else if (type == "Merge Overlapping Intervals") {
+        answer = merge_overlapping_intervals(inp)
     } else if (type == "Generate IP Addresses") {
     } else if (type == "Algorithmic Stock Trader I") {
         answer = algorithmic_stock_trader_1(inp);
