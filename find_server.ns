@@ -11,7 +11,7 @@ export async function main(ns) {
                 from[child_server] = server;
             }
         }
-    });;
+    });
     var i = 0;
     var target = ns.args[0];
     if (target == null) {
