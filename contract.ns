@@ -1,235 +1,213 @@
 /** @param {NS} ns **/
-import { for_each_server } from "util.ns";
+var HOME_RESERVED_RAM = 20;
 
-// TODO: This is n^2, see if I need to ever optimize it.
-function find_largest_prime_factor(num) {
-    var divisor = 2;
-    var largest_divisor = 1;
-    while (num != 1) {
-        while (num % divisor == 0) {
-            num = num / divisor;
-            largest_divisor = divisor;
-        }
-        divisor += 1;
-    }
-    return largest_divisor;
-}
-
-function algorithmic_stock_trader_1(inp) {
-    var i = 0;
-    var max_profit = 0;
-    while (i < inp.length) {
-        var j = i + 1;
-        while (j < inp.length) {
-            max_profit = Math.max(inp[j] - inp[i], max_profit);
-            j += 1;
-        }
-        i += 1;
-    }
-    return max_profit;
-}
-
-function array_jumping(arr) {
-
-    var result_arr = new Array(arr.length);
-    var i = arr.length - 1;
-    result_arr[i] = true;
-    i = i - 1;
-    while (i >= 0) {
-        var j = 0;
-
-        while ((i + j) < arr.length && j <= arr[i]) {
-            if (result_arr[i + j] == true) {
-                result_arr[i] = true;
-            }
-            j += 1;
-        }
-
-        i -= 1;
-    }
-
-    return result_arr;
-}
-
-export function unique_paths_in_a_grid_i(inp) {
-    var max_row = inp[0];
-    var max_col = inp[1];
-    if (max_row == 1 || max_col == 1) {
-        return 1;
-    }
-    return unique_paths_in_a_grid_i([max_row - 1, max_col]) +
-        unique_paths_in_a_grid_i([max_row, max_col - 1]);
-}
-
-function unique_paths_in_a_grid_ii(inp) {
-    var row = inp.length - 1;
-    var solution = new Array(inp.length);
-    var i = 0;
-    while (i < solution.length) {
-        solution[i] = new Array(inp[i].length);
-        i += 1;
-    }
-    while (row >= 0) {
-
-        var col = inp[row].length - 1;
-        while (col >= 0) {
-
-
-            if (inp[row][col] == 1) {
-                solution[row][col] = 0;
-            } else if ((row == inp.length - 1) &&
-                (col == inp[row].length - 1)) {
-                solution[row][col] = 1;
-            }
-            else if ((row == inp.length - 1)) {
-                solution[row][col] = solution[row][col + 1];
-            } else if (col == inp[row].length - 1) {
-                solution[row][col] = solution[row + 1][col];
-            } else {
-                solution[row][col] = solution[row + 1][col] + solution[row][col + 1];
-            }
-            col -= 1;
-
-        }
-        row -= 1;
-    }
-
-    return solution[0][0];
-}
-
-function spiralize_matrix(inp) {
-    const result = [];
-    let h = matrix.length;
-    let w = matrix[0].length;
-
-    if(w === 1 && h === 1) return [matrix[0][0]];
-
-    var r = 0;
-    var c = 0;
-
-    while(w > 1 && h > 1){
-
-        // top horizontal
-        for(let col=c; col<c + w; col++) {
-            result.push(matrix[r][col]);
-        }
-
-        // right vertical
-        for(let row=r + 1; row < r + h - 1; row++){
-            result.push(matrix[row][c + w - 1]);
-        }
-
-        // bottom horizontal
-        for(let col=c + w - 1; col >= r; col--){
-            result.push(matrix[r + h - 1][col]);
-        }
-
-        // left vertical
-        for(let row = r + h - 2; row >= r + 1; row--){
-            result.push(matrix[row][c]);
-        }
-
-        w -= 2;
-        h -= 2;
-        r++;
-        c++;
-    }
-
-    if(w <= 0 || h <= 0) return result;
-
-    if(w === 1){
-        for(let row = r; row< r + h; row++){
-            result.push(matrix[row][c]);
-        }
-    }
-    else{
-        for(let col = c; col < c + w; col++){
-           result.push(matrix[r][col]);
-       }
-    }
-
-
-    return result;
+var SCRIPTS = ["hack.ns", "grow.ns", "weaken.ns", "early-hack-template.ns"];
+var HOME = "home";
+var PORT_OPENING_FILES = {
+        "BruteSSH.exe" : function(ns,server) { ns.brutessh(server); },
+        "FTPCrack.exe" : function(ns,server) { ns.ftpcrack(server); },
+        "HTTPWorm.exe" : function(ns,server) { ns.httpworm(server); },
+        "relaySMTP.exe": function(ns,server) { ns.relaysmtp(server); },
+        "SQLInject.exe": function(ns,server) { ns.sqlinject(server); },
 };
 
-
-var types_seen = {};
-export async function get_answer(ns, host, filename) {
-    var type = ns.codingcontract.getContractType(filename, host);
-    types_seen[type] = 1
-    var inp = ns.codingcontract.getData(filename, host);
-    var answer = false;
-    ns.print("get_answer: ", filename, " ", host, type, " ", inp);
-    if (type == "Find Largest Prime Factor") {
-        anwer = find_largest_prime_factor(inp);
-    } else if (type == "Subarray with Maximum Sum") {
-    } else if (type == "Total Ways to Sum") {
-    } else if (type == "Spiralize Matrix") {
-        answer = spiralize_matrix(inp);
-    } else if (type == "Array Jumping Game") {
-        answer = array_jumping(inp);
-    } else if (type == "Merge Overlapping Intervals") {
-    } else if (type == "Generate IP Addresses") {
-    } else if (type == "Algorithmic Stock Trader I") {
-        answer = algorithmic_stock_trader_1(inp);
-    } else if (type == "Algorithmic Stock Trader II") {
-    } else if (type == "Algorithmic Stock Trader III") {
-    } else if (type == "Algorithmic Stock Trader IV") {
-    } else if (type == "Minimum Path Sum in a Triangle") {
-    } else if (type == "Unique Paths in a Grid I") {
-        answer = unique_paths_in_a_grid_i(inp);
-    } else if (type == "Unique Paths in a Grid II") {
-        answer = unique_paths_in_a_grid_ii(inp);
-    } else if (type == "Sanitize Parentheses in Expression") {
-    } else if (type == "Find All Valid Math Expressions") {
-    }
-    if(answer == false) {
-        types_seen[type] = 0;
-    }
-    return answer;
-};
-
-var solved_contracts = {};
-var failed_contracts = {};
-
-async function solve_all_contracts(ns) {
-    var solved_contracts = [];
-    await for_each_server(ns, async function (ns, server) {
-
-
-        for (let file of ns.ls(server)) {
-            if ([server, file] in solved_contracts) {
-                continue;
-            }
-            if ([server, file] in failed_contracts) {
-                continue;
-            }
-            if (file.slice(file.length - 3) == "cct") {
-                ns.print("NS:", ns, ns.codingcontract);
-                var ans = await get_answer(ns, server, file);
-                if (ans != false) {
-                    ns.print("Answer: ", ans);
-                    var result = ns.codingcontract.attempt(ans, file, server);
-                     if (result != false) {
-                        solved_contracts[[server, file]] = true;
-                        ns.print("Solved contract:", server, " ", file);
-                    } else {
-                        failed_contracts[[server, file]] = true;
-                        ns.print("Failed contract:", server, file);
-                        await ns.sleep(100000);
-
-                    }
-                }
+var from = {};
+async function contruct_from_map(ns) {
+    await for_each_server(ns, async function(ns, server) {
+        var servers = await ns.scan(server);
+        for(let child_server of servers) {
+            if(!(child_server in from)) {
+                from[child_server] = server;
             }
         }
     });
-    ns.print("Seen: ",types_seen);
-    ns.print("Solved: ",solved_contracts);
-    ns.print("Failed: ",failed_contracts);
 }
 
+// Takes a function and execute it on every reachable server
+export async function for_each_server(ns, fn) {
+    async function for_each_server_h(ns, server, fn, from) {
+        var servers = await ns.scan(server);
+        await fn(ns, server);
+        for (let item of servers) {
+            if (item != from) {
+                await for_each_server_h(ns, item, fn, server);
+            }
+        }
+    }
+    await for_each_server_h(ns, "home", fn, "");
+}
 
-export async function main(ns) {
-    await solve_all_contracts(ns);
-    ns.print(types_seen);
+async function path_from_home(ns, target) {
+    await contruct_from_map(ns);
+    var path = [];
+    while(target != "home" && target in from) {
+        path.unshift(target);
+        target = from[path];
+    }
+    return path;
+}
+
+async function path_to_home(ns, target) {
+    await contruct_from_map(ns);
+    var path = [];
+    target = from[target];
+    while(target != "home" && target in from) {
+        path.push(target);
+        target = from[path];
+    }
+    path.push("home");
+    return path;
+}
+
+async function connect_path(ns, path) {
+    ns.print(path);
+    for(let i=0; i < path.length; i++) {
+        await ns.connect(path[i]);
+    }
+}
+
+// Get the max ram for a particular server.
+// Home is adjusted downwards so that manual test scripts can be run.
+// TODO: Can we replace the ns.getServerMaxRam with this?
+export async function get_server_max_ram(ns, server) {
+    var server_max_ram = await ns.getServerMaxRam(server);
+    if (server == HOME) {
+        return server_max_ram - HOME_RESERVED_RAM;
+    }
+    return server_max_ram;
+}
+
+export async function get_server_available_ram(ns, server) {
+    var server_ram = await ns.getServerMaxRam(server) - await ns.getServerUsedRam(server);;
+    if (server == HOME) {
+        return server_ram - HOME_RESERVED_RAM;
+    }
+    return server_ram;
+}
+
+// Returns total RAM in the network.
+export async function get_total_ram(ns) {
+    var total_ram = 0;
+    await for_each_server(ns, async function(ns, server) {
+        total_ram += await get_server_max_ram(ns, server);
+    });
+    return total_ram;
+}
+
+// Returns total RAM in the network.
+export async function get_total_available_ram(ns) {
+    var total_ram = 0;
+    await for_each_server(ns, async function(ns, server) {
+        total_ram += await ns.getServerMaxRam(server) - await ns.getServerUsedRam(server);;
+    });
+    return total_ram-HOME_RESERVED_RAM;
+}
+
+// Starts the given script/target combination on all reachable servers.
+// TODO: Expand to a normal arglist.
+export async function install_script_on_all_servers(ns, script, target) {
+    await for_each_server(ns, async function (ns, server) {
+        if (ns.hasRootAccess(server)) {
+            var num_threads = Math.floor( (await get_server_max_ram(ns, server) - await ns.getServerUsedRam(server)) / await ns.getScriptRam(script));
+            if (num_threads > 0) {
+                await ns.exec(script, server, num_threads, target);
+            }
+        }
+    });
+}
+
+// Performs setup on all reachable nodes:
+//  1. Gets root access on all reachable servers.  Copies
+//  2. Copies over all  relevant scripts
+//  3. Kills all copies of the scripts running.
+//  4. Installs backdoor on server
+var backdoored = {};
+export async function setup_servers(ns) {
+    await for_each_server(ns, async function (ns, server) {
+        var files = await ns.ls("home");
+        var num_server_ports_can_open = 0;
+        for(let file in PORT_OPENING_FILES) {
+            if(files.includes(file)) {
+                PORT_OPENING_FILES[file](ns,server);
+                num_server_ports_can_open += 1;
+            }
+        }
+
+        var can_nuke = await ns.getServerNumPortsRequired(server) <= num_server_ports_can_open;
+        var has_root = await ns.hasRootAccess(server);
+
+        if (can_nuke && !has_root) {
+            await ns.nuke(server);
+        }
+        /*ns.print("Server in backdoored:", server in backdoored);
+        if(!(server in backdoored)) {
+            await connect_path(ns, path_from_home(ns, server));
+            await ns.installBackdoor();
+            await connect_path(ns, path_to_home(ns, server));
+        }*/
+
+        if (server != HOME) {
+            for (let script of SCRIPTS) {
+                await ns.scp(script, HOME, server);
+            }
+        }
+
+        for (let script of SCRIPTS) {
+            await ns.scriptKill(script, server);
+        }
+    });
+}
+
+// Returns whether the given script is running anywhere on our network.
+export async function running(ns, script, ...args) {
+    var result = false;
+    var reason = null;
+    await for_each_server(ns, async function(ns, server) {
+        var processes = ns.ps(server);
+        for(let i = 0; i < processes.length; ++i) {
+            if(processes[i].filename == script) {
+                var arg_missing = false;
+                for(let arg of args) {
+                    arg_missing |= !(arg in processes[i].args) ;
+                }
+                result |= !arg_missing;
+            }
+        }
+    });
+
+    return result;
+}
+
+async function GetAllHackableServers(ns) {
+    var hackable_servers = [];
+    var hacking_level = ns.getHackingLevel();
+    await for_each_server(ns, async function (ns, server) {
+        if(ns.hasRootAccess(server) && ns.getServerMaxMoney(server) != 0) {
+            var required_hacking_level = ns.getServerRequiredHackingLevel(server);
+            if (required_hacking_level * 4 < hacking_level) {
+                hackable_servers.push(server);
+            }
+        }
+    });
+    return hackable_servers;
+}
+
+export async function run_script(ns, script, threads, ...args) {
+    var remaining_threads = threads;
+    var server_ran = null;
+    await for_each_server(ns, async function(ns, server) {
+        ns.print(threads, "  ", remaining_threads, " ", server_ran, " ", script)
+        if(remaining_threads > 0 && ns.hasRootAccess(server)) {
+            var num_threads_can_run = (await get_server_available_ram(ns, server))
+            / await ns.getScriptRam(script);
+            var threads_to_run = Math.min(num_threads_can_run, remaining_threads);
+            ns.print("server: ", server, "theads: ", threads_to_run)
+            if(threads_to_run > 0 && threads_to_run == remaining_threads) {
+                remaining_threads -= threads_to_run;
+                server_ran = server;
+                ns.exec(script, server, threads_to_run, ...args);
+
+            }
+        }
+    });
 }
